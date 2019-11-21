@@ -1,0 +1,68 @@
+name: Build windows wheels
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      CONNECTOR_VERSION: "3.1.5"
+    steps:
+      - name: Checkout mysqlclient
+        uses: actions/checkout@v1
+        with:
+          repository: PyMySQL/mysqlclient-python
+          ref: master
+          fetch-depth: 10
+          path: mysqlclient
+
+      - name: Site Config
+        shell: bash
+        working-directory: ../mysqlclient
+        run: |
+          pwd
+          find .
+          cat <<EOF >site.cfg
+          [options]
+          static = True
+          connector = C:/mariadb-connector
+          EOF
+          cat site.cfg
+
+      - name: Download Connector
+        run: curl -LO "https://downloads.mariadb.com/Connectors/c/connector-c-${CONNECTOR_VERSION}/mariadb-connector-c-${CONNECTOR_VERSION}-src.zip"
+        shell: bash
+      - name: Unzip Connector
+        run: unzip "mariadb-connector-c-${CONNECTOR_VERSION}-src.zip" -d c:/mariadb-connector
+        shell: bash
+
+      - name: Build Connector
+        shell: cmd
+        working-directory: c:/mariadb-connector
+        run: |
+          ren mariadb-connector-c-%CONNECTOR_VERSION%-src src
+          mkdir build
+          cd build
+          cmake -A x64 ../src -DCMAKE_BUILD_TYPE=Release -DCLIENT_PLUGIN_DIALOG=static -DCLIENT_PLUGIN_SHA256_PASSWORD=static -DCLIENT_PLUGIN_CACHING_SHA2_PASSWORD=static
+          cmake --build . -j 8 --config Release
+          cmake -DCMAKE_INSTALL_PREFIX=c:/mariadb-connector -DCMAKE_INSTALL_COMPONENT=Development -DCMAKE_BUILD_TYPE=Release -P cmake_install.cmake
+
+      - name: Build wheels
+        shell: cmd
+        working-directory: ../mysqlclient
+        run: |
+          py -3.8 -m pip -U install setuptools wheel pip
+          py -3.8 setup.py bdist_wheel
+          py -3.7 -m pip -U install setuptools wheel pip
+          py -3.7 setup.py bdist_wheel
+          py -3.6 -m pip -U install setuptools wheel pip
+          py -3.6 setup.py bdist_wheel
+
+      - name: Upload Wheel
+        uses: actions/upload-artifact@v1
+        with:
+          name: win-wheels
+          path: ../mysqlclient/dist
