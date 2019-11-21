@@ -11,6 +11,33 @@ jobs:
     env:
       CONNECTOR_VERSION: "3.1.5"
     steps:
+
+      - name: Cache Connector
+        id: cache-connector
+        uses: actions/cache@v1
+        with:
+          path: c:/mariadb-connector
+          key: mariadb-connector-3.1.5-win
+
+      - name: Download and Unzip Connector
+        if: steps.cache-connector.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          curl -LO "https://downloads.mariadb.com/Connectors/c/connector-c-${CONNECTOR_VERSION}/mariadb-connector-c-${CONNECTOR_VERSION}-src.zip"
+          unzip "mariadb-connector-c-${CONNECTOR_VERSION}-src.zip" -d c:/
+          mv "c:/mariadb-connector-c-${CONNECTOR_VERSION}-src" c:/mariadb-connector-src
+
+      - name: Build Connector
+        if: steps.cache-connector.outputs.cache-hit != 'true'
+        shell: cmd
+        working-directory: c:/mariadb-connector-src
+        run: |
+          mkdir build
+          cd build
+          cmake -A x64 .. -DCMAKE_BUILD_TYPE=Release -DCLIENT_PLUGIN_DIALOG=static -DCLIENT_PLUGIN_SHA256_PASSWORD=static -DCLIENT_PLUGIN_CACHING_SHA2_PASSWORD=static
+          cmake --build . -j 8 --config Release
+          cmake -DCMAKE_INSTALL_PREFIX=c:/mariadb-connector -DCMAKE_INSTALL_COMPONENT=Development -DCMAKE_BUILD_TYPE=Release -P cmake_install.cmake
+
       - name: Checkout mysqlclient
         uses: actions/checkout@v1
         with:
@@ -31,24 +58,6 @@ jobs:
           connector = C:/mariadb-connector
           EOF
           cat site.cfg
-
-      - name: Download Connector
-        run: curl -LO "https://downloads.mariadb.com/Connectors/c/connector-c-${CONNECTOR_VERSION}/mariadb-connector-c-${CONNECTOR_VERSION}-src.zip"
-        shell: bash
-      - name: Unzip Connector
-        run: unzip "mariadb-connector-c-${CONNECTOR_VERSION}-src.zip" -d c:/mariadb-connector
-        shell: bash
-
-      - name: Build Connector
-        shell: cmd
-        working-directory: c:/mariadb-connector
-        run: |
-          ren mariadb-connector-c-%CONNECTOR_VERSION%-src src
-          mkdir build
-          cd build
-          cmake -A x64 ../src -DCMAKE_BUILD_TYPE=Release -DCLIENT_PLUGIN_DIALOG=static -DCLIENT_PLUGIN_SHA256_PASSWORD=static -DCLIENT_PLUGIN_CACHING_SHA2_PASSWORD=static
-          cmake --build . -j 8 --config Release
-          cmake -DCMAKE_INSTALL_PREFIX=c:/mariadb-connector -DCMAKE_INSTALL_COMPONENT=Development -DCMAKE_BUILD_TYPE=Release -P cmake_install.cmake
 
       - name: Build wheels
         shell: cmd
