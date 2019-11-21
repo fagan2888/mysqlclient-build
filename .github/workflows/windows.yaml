@@ -82,9 +82,9 @@ jobs:
         run: |
           ls -la
           py -3.8 -m pip install mysqlclient-1.4.5-cp38-cp38-win_amd64.whl
-          py -3.8 -c "import MySQLdb; con=MySQLdb.connect(user='root', password='root'); cur=con.cursor(); cur.execute('SELECT VERSION()'); print(*cur.fetchall())"
+          py -3.8 -c "import MySQLdb"
           py -3.7 -m pip install mysqlclient-1.4.5-cp37-cp37m-win_amd64.whl
-          py -3.7 -c "import MySQLdb; con=MySQLdb.connect(user='root', password='root'); cur=con.cursor(); cur.execute('SELECT VERSION()'); print(*cur.fetchall())"
+          py -3.7 -c "import MySQLdb"
           py -3.6 -m pip install mysqlclient-1.4.5-cp36-cp36m-win_amd64.whl
-          py -3.6 -c "import MySQLdb; con=MySQLdb.connect(user='root', password='root'); cur=con.cursor(); cur.execute('SELECT VERSION()'); print(*cur.fetchall())"
+          py -3.6 -c "import MySQLdb"
 
